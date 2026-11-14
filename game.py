@@ -45,7 +45,7 @@ TRANSITIONS: dict[GameState, set[GameState]] = {
     S.VICTORY: {S.TITLE},
 }
 
-PAUSE_ITEMS = ("RESUME", "SOUND", "SHAKE", "RESTART CHAMBER", "QUIT TO TITLE")
+PAUSE_ITEMS = ("RESUME", "SOUND", "SHAKE", "CRT FILTER", "RESTART CHAMBER", "QUIT TO TITLE")
 GAME_OVER_ITEMS = ("RETRY CHAMBER", "NEW RUN", "TITLE")
 
 INTRO_PAGES: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -71,7 +71,7 @@ INTRO_PAGES: tuple[tuple[str, tuple[str, ...]], ...] = (
         "E / X        ECHO: DECOY REWINDS",
         "             YOUR LAST 3 SECONDS",
         "P / ESC      PAUSE",
-        "M SOUND      K SCREEN SHAKE",
+        "M SOUND  K SHAKE  C CRT FILTER",
     )),
 )
 
@@ -87,6 +87,7 @@ class Game:
         self.high_score = self.store.load()
         self.sound_on = True
         self.shake_on = True
+        self.crt_on = False
         self.state = S.TITLE
         self.state_timer = 0
         self.frame = 0
@@ -155,6 +156,8 @@ class Game:
             self.sound_on = not self.sound_on
         if inp.shake:
             self.shake_on = not self.shake_on
+        if inp.crt:
+            self.crt_on = not self.crt_on
         self.fx.camera.enabled = self.shake_on
         if self.input_lock > 0:
             self.input_lock -= 1
@@ -232,6 +235,8 @@ class Game:
                 self.sound_on = not self.sound_on
             elif item == "SHAKE":
                 self.shake_on = not self.shake_on
+            elif item == "CRT FILTER":
+                self.crt_on = not self.crt_on
             elif item == "RESTART CHAMBER":
                 self.retry_chamber()
             elif item == "QUIT TO TITLE":
@@ -347,6 +352,7 @@ class Game:
         self._load_chamber(self.chamber_index + 1)
 
     def _finish_run_scoring(self) -> None:
+        self.new_record = False  # judged per ending: a retry must not inherit an old record flag
         if self.run.score > self.high_score:
             self.high_score = self.run.score
             self.new_record = True

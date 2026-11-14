@@ -80,6 +80,18 @@ class Renderer:
             pyxel.dither(0.5)
             pyxel.rect(0, 0, C.SCREEN_W, C.SCREEN_H, g.camera.flash_color)
             pyxel.dither(1.0)
+        if g.crt_on:
+            self.draw_crt(g.frame)
+
+    def draw_crt(self, t: int) -> None:
+        """Optional CRT look (C key): darkened alternate rows plus a soft dark vignette."""
+        pyxel.dither(0.3)
+        for y in range(1, C.SCREEN_H, 2):
+            pyxel.line(0, y, C.SCREEN_W - 1, y, 0)
+        pyxel.dither(0.5)
+        for r in range(4):
+            pyxel.rectb(r, r, C.SCREEN_W - 2 * r, C.SCREEN_H - 2 * r, 0)
+        pyxel.dither(1.0)
 
     # ------------------------------------------------------------------ shared bits
     def draw_starfield(self, t: int, speed: float = 0.1) -> None:
@@ -116,6 +128,10 @@ class Renderer:
         else:
             name = "k09_idle_a" if (t // 20) % 2 == 0 else "k09_idle_b"
         draw_sprite(name, x, y, flip_x=facing < 0)
+
+    def draw_big(self, name: str, cx: float, cy: float, scale: float, flip: bool = False) -> None:
+        u, v, w, h = SPRITES[name]
+        pyxel.blt(cx - w / 2, cy - h / 2, 0, u, v, -w if flip else w, h, 0, scale=scale)
 
     def draw_ghost(self, x: float, y: float, t: int, facing: int = 1, alpha: float = 0.75) -> None:
         for a, b in ((7, 6), (12, 7), (1, 12), (5, 12), (11, 6), (13, 6), (10, 7), (9, 6)):
@@ -156,14 +172,21 @@ class Renderer:
         self.draw_logo(18, t)
         text_c(34, "T H E   L A S T   S I G N A L", 6, 1)
         # K-09 walking with its echo ghost trailing behind
-        kx = (t // 2) % 200 - 20
-        self.draw_ghost(kx - 22, 96, t + 6)
-        self.draw_k09(kx, 96, t, True)
+        kx = (t // 2) % 220 - 30
+        frame = "k09_run_a" if (t // 4) % 2 == 0 else "k09_run_b"
+        for a, b in ((7, 6), (12, 7), (1, 12), (5, 12), (11, 6), (13, 6), (10, 7), (9, 6)):
+            pyxel.pal(a, b)
+        pyxel.dither(0.55 if (t // 2) % 4 else 0.35)
+        self.draw_big(frame, kx - 26, 96, 2)
+        pyxel.dither(1.0)
+        pyxel.pal()
+        self.draw_big(frame, kx, 96, 2)
         if (t // 15) % 2 == 0:
             text_c(66, "PRESS ENTER TO BEGIN", 10)
         text_c(78, "SPACE PULSE   E ECHO   P PAUSE", 13, 1)
-        pyxel.text(4, 110, f"[M]SOUND:{'ON ' if g.sound_on else 'OFF'} [K]SHAKE:{'ON ' if g.shake_on else 'OFF'}", 5)
-        pyxel.text(112, 110, f"HI {g.high_score:06d}", 10)
+        onoff = lambda v: "ON " if v else "OFF"  # noqa: E731
+        pyxel.text(2, 110, f"M:SND {onoff(g.sound_on)} K:SHK {onoff(g.shake_on)} C:CRT {onoff(g.crt_on)}", 5)
+        pyxel.text(122, 4, f"HI {g.high_score:06d}", 10)
 
     # ------------------------------------------------------------------ intro
     def draw_intro(self, g: Game) -> None:
@@ -212,8 +235,8 @@ class Renderer:
                 if (tx + ty) % 2 == 0:
                     img.pset(x, y, st.floor_line)
                     img.pset(x + 7, y + 7, st.floor_line)
-                if tx % 2 == 0:
-                    img.line(x, y, x, y + 7, st.floor_line) if (ty % 3 == 0) else None
+                if tx % 2 == 0 and ty % 3 == 0:
+                    img.line(x, y, x, y + 7, st.floor_line)
                 if (tx * 31 + ty * 17) % 13 == 0:
                     img.pset(x + 3, y + 4, st.leaf)
                     img.pset(x + 4, y + 3, st.leaf_hi)
@@ -267,6 +290,8 @@ class Renderer:
             if (t // 10) % 2:
                 pyxel.line(tm.x + 2, tm.y + 2, tm.x + 4, tm.y + 2, 11)
             pyxel.pset(tm.x + 2, tm.y + 3, 11)
+        for sx, sy, planted in sess.sprouts:
+            self.draw_sprout(sx + 3, sy + 6, t - planted, sess.chamber.style)
         for i, c in enumerate(sess.cells):
             bob = math.sin(t * 0.12 + i) * 1.2
             draw_sprite("cell", c.x - 1, c.y - 1 + bob)
@@ -292,13 +317,55 @@ class Renderer:
             pyxel.dither(1.0)
             pyxel.circb(x, y, r, 6)
             pyxel.circb(x, y, max(1, r - 3), 12)
+        if sess.collapse_fx:
+            x, y, left = sess.collapse_fx
+            r = C.ECHO_COLLAPSE_RADIUS * (1 - left / C.ECHO_COLLAPSE_FX) + 3
+            pyxel.dither(0.3)
+            pyxel.circ(x, y, r, 2)
+            pyxel.dither(1.0)
+            pyxel.circb(x, y, r, 6)
+            pyxel.circb(x, y, max(1, r - 4), 2)
         g.particles.draw()
         g.popups.draw()
         pyxel.camera()
+        if sess.echo is not None and sess.echo.index < 8:
+            self.draw_rewind_glitch(sess.echo.index)
+        p = sess.player
+        if p.hp == 1 and not p.dying and (t // 8) % 2:
+            pyxel.rectb(0, C.MAP_Y, 160, 112, 8)
+            pyxel.rectb(1, C.MAP_Y + 1, 158, 110, 2)
         self.draw_hud(g)
         self.draw_bars(sess, t)
         if sess.banner > 0:
             self.draw_banner(sess)
+
+    def draw_rewind_glitch(self, k: int) -> None:
+        """VHS-style rewind tear lines for the first frames of an Echo."""
+        rnd = self.fx_rng
+        pyxel.dither(0.6 - k * 0.06)
+        for _ in range(4):
+            y = rnd.randrange(C.MAP_Y, C.SCREEN_H - 2)
+            pyxel.rect(rnd.randrange(-20, 60), y, rnd.randrange(40, 120), 1, rnd.choice((6, 12, 2)))
+        pyxel.dither(1.0)
+        if k < 4:
+            pyxel.text(4, C.MAP_Y + 3, "<< REWIND", 6)
+
+    def draw_sprout(self, x: float, base_y: float, age: int, st) -> None:
+        """A plant grows where a Lumen Seed was recovered: visible proof the garden is healing."""
+        grow = min(1.0, age / C.SPROUT_GROW_FRAMES)
+        h = int(1 + 6 * grow)
+        stem = 11 if st.leaf == 2 else st.leaf_hi
+        pyxel.line(x, base_y, x, base_y - h, 3)
+        if h > 2:
+            pyxel.pset(x - 1, base_y - h + 2, stem)
+            pyxel.pset(x + 1, base_y - h + 3, stem)
+        if grow >= 1.0:
+            petal = 10 if (age // 20) % 2 else 15
+            for px, py in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                pyxel.pset(x + px, base_y - h + py, petal)
+            pyxel.pset(x, base_y - h, 7)
+        elif age < 12:
+            pyxel.circb(x, base_y - 2, age // 2 + 1, 10)
 
     def draw_ambient(self, st, t: int) -> None:
         for i in range(14):
@@ -457,7 +524,7 @@ class Renderer:
             pyxel.line(cx, cy, mx, my, 2)
             pyxel.line(mx, my, ex, ey, 8 if k % 2 else 2)
         pulse = math.sin(t * speed) * 1.5
-        body_r = (14 + pulse) * rising
+        body_r = (C.BOSS_BODY_RADIUS + pulse) * rising
         flash = b.flash > 0 and b.flash % 2
         pyxel.circ(cx, cy, body_r, 7 if flash else 2)
         pyxel.circ(cx, cy, body_r - 3, 7 if flash else (14 if b.phase == 2 else 8))
@@ -536,6 +603,18 @@ class Renderer:
 
     def draw_banner(self, sess) -> None:
         f = sess.banner
+        if sess.chamber.is_boss:
+            if (f // 6) % 2:
+                for i in range(-2, 22):
+                    x = i * 8 - (f % 8)
+                    pyxel.tri(x, 44, x + 4, 44, x - 2, 50, 8)
+                    pyxel.tri(x, 68, x + 4, 68, x - 2, 74, 8)
+            pyxel.rect(0, 50, 160, 18, 0)
+            pyxel.line(0, 50, 160, 50, 8)
+            pyxel.line(0, 67, 160, 67, 8)
+            text_c(53, "!! WARNING !!", 8 if (f // 4) % 2 else 14, 2)
+            text_c(61, "CORRUPTION SOURCE DETECTED", 7, None)
+            return
         slide = 0
         if f > C.BANNER_FRAMES - 10:
             slide = (f - (C.BANNER_FRAMES - 10)) * 16
@@ -555,17 +634,17 @@ class Renderer:
 
     def draw_pause(self, g: Game) -> None:
         self._dim()
-        panel(36, 26, 88, 70, 0, 12, 10)
-        text_c(31, "PAUSED", 10)
-        text_c(40, g.chamber.name, 5, None)
+        panel(10, 14, 140, 98, 0, 12, 10)
+        text_c(19, "PAUSED", 10)
+        text_c(28, f"{g.chamber.label} // {g.chamber.name}", 5, None)
+        toggles = {"SOUND": g.sound_on, "SHAKE": g.shake_on, "CRT FILTER": g.crt_on}
         for i, item in enumerate(PAUSE_ITEMS):
-            label = item
-            if item == "SOUND":
-                label = f"SOUND: {'ON' if g.sound_on else 'OFF'}"
-            elif item == "SHAKE":
-                label = f"SHAKE: {'ON' if g.shake_on else 'OFF'}"
+            label = f"{item}: {'ON' if toggles[item] else 'OFF'}" if item in toggles else item
             sel = i == g.menu_index
-            text_c(52 + i * 8, ("> " + label + " <") if sel else label, 7 if sel else 13, None)
+            text_c(39 + i * 8, ("> " + label + " <") if sel else label, 7 if sel else 13, None)
+        pyxel.line(16, 89, 143, 89, 1)
+        text_c(93, "WASD MOVE  SPACE PULSE  E ECHO", 6, None)
+        text_c(102, "SEEDS WAKE THE EXIT RELAY", 10, None)
 
     def draw_level_complete(self, g: Game) -> None:
         self._dim()

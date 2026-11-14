@@ -17,7 +17,7 @@ import config as C
 from actors import (
     DroneState, Drone, EchoGhost, Exit, Lane, Pickup, Player, Spore, SporePod, Terminal, Vent,
 )
-from engine import Camera, FloatingTextManager, ParticleSystem, TileGrid, clamp, distance, rects_overlap, safe_direction
+from engine import Camera, FloatingTextManager, ParticleSystem, TileGrid, clamp, distance, safe_direction
 from world import BOSS_CELL_SPOTS, SOLID_TILES, ChamberDef, Stats
 
 
@@ -40,6 +40,7 @@ class InputState:
     quit: bool = False
     mute: bool = False
     shake: bool = False
+    crt: bool = False
 
     def holds_only(self) -> "InputState":
         return InputState(up=self.up, down=self.down, left=self.left, right=self.right)
@@ -189,6 +190,8 @@ class ChamberSession:
         self.echo_cooldown = 0
         self.pulse_lockout = 0
         self.pulse_fx: tuple[float, float, int] | None = None  # (x, y, frames_left)
+        self.collapse_fx: tuple[float, float, int] | None = None
+        self.sprouts: list[tuple[float, float, int]] = []  # restored plants: (x, y, frame planted)
         self.on_terminal: int = -1
         self.locked_msg_cd = 0
         self.cell_timer = 0
@@ -259,6 +262,9 @@ class ChamberSession:
         if self.pulse_fx:
             x, y, t = self.pulse_fx
             self.pulse_fx = (x, y, t - 1) if t > 1 else None
+        if self.collapse_fx:
+            x, y, t = self.collapse_fx
+            self.collapse_fx = (x, y, t - 1) if t > 1 else None
         if self.completed or self.dead or self.victory:
             return
         p = self.player
@@ -318,6 +324,9 @@ class ChamberSession:
     def _update_abilities(self, inp: InputState) -> None:
         if self.echo_cooldown > 0:
             self.echo_cooldown -= 1
+            if self.echo_cooldown == 0 and not self.player.dying:
+                p = self.player
+                self.fx.popups.spawn_centered("ECHO READY", p.x + p.w / 2, p.y - 8, 6, 22)
         if self.pulse_lockout > 0:
             self.pulse_lockout -= 1
         if inp.pulse:
@@ -416,8 +425,33 @@ class ChamberSession:
         self.echo.update()
         if not self.echo.alive:
             ex, ey = self.echo.center()
-            self.fx.particles.burst(ex, ey, 8, [6, 12, 2], 1.0, 14)
+            self.echo_collapse(ex, ey)
             self.clear_echo()
+
+    def echo_collapse(self, ex: float, ey: float) -> int:
+        """The finished echo detonates: lure drones in, then trap them. Returns drones caught."""
+        caught = 0
+        for i, d in enumerate(self.drones):
+            dx_, dy_ = d.center()
+            if distance(ex, ey, dx_, dy_) > C.ECHO_COLLAPSE_RADIUS:
+                continue
+            caught += 1
+            if d.kind == "mote":
+                d.alive = False
+                self.run.add_score(C.SCORE_MOTE)
+                continue
+            ux, uy = safe_direction(dx_ - ex, dy_ - ey, fallback_angle=i * 2.39996)
+            d.stun(ux * 1.8, uy * 1.8, C.ECHO_COLLAPSE_STUN)
+            self.run.add_score(C.SCORE_STUN)
+            self.run.stuns += 1
+        self.drones = [d for d in self.drones if d.alive]
+        self.collapse_fx = (ex, ey, C.ECHO_COLLAPSE_FX)
+        self.fx.particles.ring(ex, ey, 4, 14, [6, 12, 2, 7], 1.8)
+        if caught:
+            self.fx.popups.spawn_centered(f"ECHO TRAP x{caught}", ex, ey - 10, 6, 28)
+            self.fx.camera.shake(5, 1.2)
+            self.fx.play("stun")
+        return caught
 
     def clear_echo(self) -> None:
         """Remove the echo and release every drone that was hunting it."""
@@ -583,6 +617,7 @@ class ChamberSession:
                 seed.alive = False  # collected exactly once
                 self.seeds_collected += 1
                 self.run.seeds += 1
+                self.sprouts.append((seed.x, seed.y, self.frame))  # the garden regrows where seeds were
                 self.run.add_score(C.SCORE_SEED)
                 p.energy = clamp(p.energy + C.SEED_ENERGY, 0.0, C.ENERGY_MAX)
                 cx, cy = seed.center()
@@ -602,7 +637,7 @@ class ChamberSession:
         self.cells = [c for c in self.cells if c.alive]
         if self.boss and self.boss.alive and not self.booting:
             self.cell_timer += 1
-            if self.cell_timer >= C.BOSS_CELL_RESPAWN and len(self.cells) < 2:
+            if self.cell_timer >= C.BOSS_CELL_RESPAWN and len(self.cells) < C.BOSS_MAX_CELLS:
                 self.cell_timer = 0
                 spot = BOSS_CELL_SPOTS[self.rng.randrange(len(BOSS_CELL_SPOTS))]
                 x, y, _, _ = self.grid.tile_rect(*spot)

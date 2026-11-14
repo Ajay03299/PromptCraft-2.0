@@ -45,6 +45,7 @@ def read_input():
         quit=pressed(pyxel.KEY_ESCAPE),
         mute=pressed(pyxel.KEY_M),
         shake=pressed(pyxel.KEY_K),
+        crt=pressed(pyxel.KEY_C),
     )
 
 

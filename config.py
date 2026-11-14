@@ -60,6 +60,10 @@ ECHO_MIN_SAMPLES = 12      # need at least this much trail to project an echo
 ECHO_BASE_COOLDOWN = 240   # 8 seconds, starts on activation
 ECHO_LINGER = 45           # frames the ghost hovers at the end of its replay
 ECHO_LURE_RADIUS = 100     # drones inside this radius hunt the echo instead of K-09
+ECHO_COLLAPSE_RADIUS = 26  # when the replay ends, the ghost detonates and stuns lured drones
+ECHO_COLLAPSE_STUN = 60
+ECHO_COLLAPSE_FX = 10
+SPROUT_GROW_FRAMES = 36
 
 # --- Corrupted drones ----------------------------------------------------------------
 DRONE_W = 6
@@ -91,7 +95,7 @@ BLIGHT_INSET = 2           # px of forgiveness around corrupted growth
 # --- Final boss: THE BLIGHT HEART ------------------------------------------------------
 BOSS_HP = 6
 BOSS_PHASE2_HP = 3
-BOSS_BODY_RADIUS = 16
+BOSS_BODY_RADIUS = 14
 BOSS_HIT_RADIUS = 18       # added to the pulse radius when checking a core hit
 BOSS_SPORE_SPAWN_RADIUS = 24
 BOSS_INTRO_FRAMES = 90
@@ -126,8 +130,8 @@ MAX_PARTICLES = 240
 MAX_LABELS = 14
 MAX_SPORES = 48
 MAX_DRONES = 12
-MAX_CELLS = 4
 MAX_SFX_QUEUE = 8
+BOSS_MAX_CELLS = 2
 INPUT_LOCK_FRAMES = 8
 
 # --- Audio channels ----------------------------------------------------------------------
@@ -135,5 +139,4 @@ MUSIC_CHANNELS = (0, 1)
 SFX_CHANNELS = (2, 3)
 
 # --- Text --------------------------------------------------------------------------------
-CHAR_W = 4                 # Pyxel's built-in font is 4 px per character
 MAX_BAR_CHARS = 39         # characters that fit in the 160 px message bar

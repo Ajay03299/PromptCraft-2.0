@@ -71,6 +71,8 @@ def main() -> None:
         and not g.session.lanes[0].striking and g.session.boss.timer == 12,
         "09_boss_exposed.png": lambda: g.state == GameState.PLAYING and g.chamber_index == 3
         and g.session.boss.exposed and g.session.boss.timer == 60,
+        "11_echo_trap.png": lambda: g.state == GameState.PLAYING and g.session.collapse_fx is not None
+        and g.session.collapse_fx[2] == 6 and any(d.state.value == "STUNNED" for d in g.session.drones),
         "10_victory.png": lambda: g.state == GameState.VICTORY and g.state_timer == 88,
     }
     taken: set[str] = set()

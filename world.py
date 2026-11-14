@@ -77,7 +77,7 @@ CHAMBERS: list[ChamberDef] = [
         hints=(
             ("start", "COLLECT EVERY LUMEN SEED"),
             ("drone", "SPACE: PULSE STUNS DRONES"),
-            ("echo", "E: ECHO DECOY REPLAYS YOUR TRAIL"),
+            ("echo", "E: ECHO DECOY - IT EXPLODES AT THE END"),
             ("relay", "RELAY ONLINE - REACH THE EXIT"),
         ),
     ),

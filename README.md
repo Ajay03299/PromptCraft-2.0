@@ -41,6 +41,7 @@ You are **K-09**. Recover the **Lumen Seeds**, wake each **exit relay**, and des
 | **ENTER / Z / SPACE** | Confirm in menus |
 | **M** | Toggle sound (anywhere) |
 | **K** | Toggle screen shake (anywhere, for accessibility) |
+| **C** | Toggle the optional CRT filter (scanlines + vignette) |
 | **ESC** on title | Quit |
 
 Gamepads work too: D-pad to move, A to pulse, B to echo, START to pause.
@@ -49,11 +50,12 @@ Gamepads work too: D-pad to move, A to pulse, B to echo, START to pause.
 
 ## The signature mechanic: ECHO REPLAY
 
-K-09 constantly records its last **3 seconds** of movement into a bounded buffer. Press **E** and a cyan-lavender ghost appears where you stand, then **walks your recorded trail in reverse**, away from you. Every corrupted drone within range **abandons you and hunts the ghost** (marked with `?`). When the replay finishes, the ghost lingers briefly as a beacon, then fades. Drones fall back to normal targeting.
+K-09 constantly records its last **3 seconds** of movement into a bounded buffer. Press **E** and a cyan-lavender ghost appears where you stand, then **walks your recorded trail in reverse**, away from you. Every corrupted drone within range **abandons you and hunts the ghost** (marked with `?`). When the replay finishes, the ghost lingers briefly as a beacon, then collapses in a stunning shockwave. Drones fall back to normal targeting.
 
 It works as a tactical deception tool:
 - **Lure a guard out of position.** Walk past a drone guarding a seed, double back, then echo. The ghost retraces your path and drags the drone with it.
 - **Escape an encirclement.** Drones chasing you turn around mid-chase.
+- **Spring a trap: Echo Collapse.** When the replay ends, the ghost **detonates**. Every drone it lured to the end of the trail is stunned (`ECHO TRAP x2`). Lead the swarm into a corner, then walk away while they're caught.
 - **Open the boss.** THE BLIGHT HEART can't resist a signal. When it locks onto your echo, it overloads and **exposes its core** for a long window.
 
 Rules the code guarantees (and tests check):
@@ -66,6 +68,7 @@ Rules the code guarantees (and tests check):
 
 ## Features
 
+- **You can watch the garden heal.** Every Lumen Seed you recover leaves a sprout that grows and blooms on the map, so a cleared chamber visibly comes back to life.
 - **Three handcrafted chambers plus a boss arena**, each with its own palette, ambient particles, music, and hazards:
   - **01 SEED VAULT**: a calm introduction that teaches movement, seeds, drones, Pulse, and Echo.
   - **02 HYDROPONICS**: rhythmic **energy vents** in chokepoints, **spore pods** firing alternating cross/diagonal volleys, and more drones.
@@ -82,8 +85,14 @@ Rules the code guarantees (and tests check):
   - **AMPLIFIED PULSE**: +8 radius and −6 energy cost.
   - **ECHO MEMORY**: +1 s trail and −2 s cooldown.
   - **REINFORCED SHELL**: +1 max HP and a full repair.
-- **Full game flow**: title, story and tutorial pages, chamber banners, pause menu, chamber tally (time, flawless bonus), game over (retry chamber / new run / title), and a victory sequence where the garden regrows.
+- **Full game flow**: title, story and tutorial pages, chamber banners, pause menu (with a controls reminder), chamber tally (time, flawless bonus), game over (retry chamber / new run / title), and a victory sequence where the garden regrows.
 - **Juice**: particles, floating labels, screen shake (toggleable and capped), damage flashes, hit-stun blinking, knockback, invulnerability frames, and glowing seeds.
+- **Signal-glitch presentation**:
+  - A VHS-style `<< REWIND` tear effect when an Echo fires.
+  - An `ECHO READY` callout when the cooldown ends.
+  - A flashing red alarm border at 1 HP.
+  - A hazard-striped `!! WARNING !!` banner before the boss.
+  - An optional CRT filter.
 - **Procedural chiptune audio**: 25 sound effects and 5 two-channel music loops, all written as note strings in code. Music plays on channels 0–1 and SFX on 2–3, so sounds no longer cut each other off.
 - **Persistent high score**: saved to Pyxel's user data folder, with a safe fallback when the file is missing, malformed, or unwritable.
 
@@ -115,6 +124,8 @@ All screenshots are real frames rendered by the game itself. `tools/capture_scre
 | 03 REACTOR BLOOM: corrupted growth | BLIGHT HEART: telegraphed root slam |
 | ![Boss exposed](docs/screenshots/09_boss_exposed.png) | ![Victory](docs/screenshots/10_victory.png) |
 | Core exposed: pulse it! | The garden breathes again |
+| ![Echo collapse](docs/screenshots/11_echo_trap.png) | |
+| Echo Collapse ring (top-left) and sprouts blooming where seeds were collected | |
 
 To regenerate: `python tools/capture_screenshots.py`. You can also press **Alt+1** in-game for Pyxel's built-in screenshot (Alt+3 records a GIF).
 
@@ -157,7 +168,7 @@ Starter bugs found and fixed:
 
 ```bash
 python main.py --self-test               # headless smoke simulation, exit code 1 on failure
-python -m unittest discover -s tests -v  # 46 unit tests
+python -m unittest discover -s tests -v  # 61 unit tests
 python -m compileall -q .
 python -m pip check
 ```

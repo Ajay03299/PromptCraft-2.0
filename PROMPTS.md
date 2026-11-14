@@ -78,10 +78,49 @@ What the AI did with it:
 
 ---
 
+## Prompt 4 — Independent critical review
+
+> "Act as an independent senior game-engineering reviewer and a highly critical PromptCraft competition judge. Your job is to find reasons why this submission could lose points or fail during the demonstration. Do not assume the previous implementation is correct..." (followed by a checklist: reinspect every system, try to break it, run every command, judge the first-time player experience, score against the rubric, fix the highest-value issues, keep the docs honest, and be quick).
+
+Changing the AI's role from *builder* to *adversarial reviewer* found things the build pass had missed:
+
+| Finding | Type | Fix |
+| :--- | :--- | :--- |
+| Victory screen could show "NEW HIGH SCORE" after a retry, using a record flag left over from the earlier game over | Real bug | `new_record` is now judged fresh for each ending, with a regression test |
+| No controls reminder once the intro was skipped | UX | Pause menu now shows controls and the objective |
+| No feedback when Echo recharged (only a small HUD icon) | UX | `ECHO READY` popup above K-09 |
+| Low health was easy to miss | UX | Flashing red alarm border at 1 HP |
+| Boss arrival had no build-up | Feel | Hazard-striped `!! WARNING !!` banner |
+| Echo activation lacked impact | Feel | VHS `<< REWIND` tear lines for 8 frames |
+| Three unused constants and one unused import | Dead code | Removed, or wired up (`BOSS_BODY_RADIUS` now drives the boss render) |
+
+It also added 12 adversarial tests (`tests/test_review.py`):
+- **Restarts and transitions:** restart from the pause menu, quit to title, and 40 rapid room transitions with an active echo and spores.
+- **Ability edge cases:** death during an active echo plus pulse, and boss defeat while lanes, spores and motes are all active.
+- **Long runs:** a 6,000-frame randomised boss stress run.
+- **Movement and resources:** a 3,000-step corner-wiggle collision run, zero and maximum energy, and repeated upgrade activation.
+- **Save failures:** a permission-denied save path.
+
+**A visual check overruled the code.** The first CRT filter had a rolling scan band. Rendered at 160×120, it looked like a stray dotted line rather than a CRT effect. The band was removed, and the filter now defaults to **off** (toggle with C). Without looking at real frames, this would have shipped as a "feature" that made the game look broken.
+
+## Prompt 5 — Push creative divergence and retro feel, fast
+
+> "can you improve this creative divergence and retro craft and feel quickly in a minute soon"
+
+Under time pressure, the AI picked additions that deepen the existing identity rather than bolting on new systems:
+
+| Addition | Judging target | Why this one |
+| :--- | :--- | :--- |
+| **Echo Collapse**: the finished ghost detonates, stunning drones it lured (`ECHO TRAP xN`) | Creative divergence | Turns the decoy into a lure-then-trap combo. It adds depth to the signature mechanic without a new button. It only fires on natural expiry, never on death or exit (tested) |
+| **Seeds regrow the garden**: each recovered seed leaves a sprout that grows and blooms in place | Retro craft and story | The "restore the garden" story becomes visible on screen, and it costs only a handful of pixels per seed |
+| **2x-scale K-09 and echo on the title screen** | Retro craft | The hero and the mechanic are readable within the first second |
+
+Three new tests: collapse stuns only nearby lured drones; no collapse when death clears the echo; exactly one sprout per seed. 61 tests and the self-test all pass. Screenshots were recaptured from real frames, adding `11_echo_trap.png`.
+
 ## Prompts during review and iteration
 
 _Add each follow-up prompt here: what you asked, what changed, and whether it worked._
 
 | # | Prompt | Result |
 | :--- | :--- | :--- |
-| 4 | | |
+| 6 | | |
